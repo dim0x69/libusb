@@ -2425,6 +2425,8 @@ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
 		return;
 	if (level == LIBUSB_LOG_LEVEL_INFO && ctx_level < LIBUSB_LOG_LEVEL_INFO)
 		return;
+	if (level == LIBUSB_LOG_LEVEL_RAWCTRL && ctx_level < LIBUSB_LOG_LEVEL_RAWCTRL)
+		return;
 	if (level == LIBUSB_LOG_LEVEL_DEBUG && ctx_level < LIBUSB_LOG_LEVEL_DEBUG)
 		return;
 
@@ -2458,6 +2460,9 @@ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
 		break;
 	case LIBUSB_LOG_LEVEL_DEBUG:
 		prefix = "debug";
+		break;
+	case LIBUSB_LOG_LEVEL_RAWCTRL:
+		prefix = "rawctrl";
 		break;
 	default:
 		prefix = "unknown";

@@ -60,6 +60,98 @@ static void sync_transfer_wait_for_completion(struct libusb_transfer *transfer)
 	}
 }
 
+int API_EXPORTED libusb_raw_control_transfer(struct libusb_device_handle *dev_handle,
+	unsigned char endpoint, unsigned char *setup_request, unsigned char *result_data,  int length, int *transferred,
+	unsigned int timeout)
+{
+	struct libusb_transfer *transfer;
+	unsigned char *buffer;
+	int completed = 0;
+	int r;
+
+
+	if (usbi_handling_events(HANDLE_CTX(dev_handle)))
+		return LIBUSB_ERROR_BUSY;
+		
+	transfer = libusb_alloc_transfer(0);
+	 if (!transfer)
+	 	return LIBUSB_ERROR_NO_MEM;
+
+	buffer = (unsigned char*) malloc(LIBUSB_CONTROL_SETUP_SIZE + length);
+	if (!buffer) {
+		libusb_free_transfer(transfer);
+		return LIBUSB_ERROR_NO_MEM;
+	}
+
+	memcpy(buffer, setup_request,
+			LIBUSB_CONTROL_SETUP_SIZE);
+	
+	libusb_fill_raw_control(transfer, dev_handle, endpoint, buffer, length,
+		sync_transfer_cb, &completed, timeout);
+		transfer->flags = LIBUSB_TRANSFER_FREE_BUFFER;
+	
+	// print some debug information before sending the URB
+	
+	usbi_rawctrl("transfer->buffer: ");
+	for(int i=0; i<LIBUSB_CONTROL_SETUP_SIZE; i++){
+		usbi_rawctrl("%x", transfer->buffer[i]);
+	}
+
+	usbi_rawctrl("transfer->length: %i", transfer->length);	
+	usbi_rawctrl("transfer->endpoint: %i", transfer->endpoint);	
+	usbi_rawctrl("transfer->timeout: %i", transfer->timeout);	
+
+	usbi_rawctrl("send request out...");	
+
+	r = libusb_submit_transfer(transfer);
+	if (r < 0) {
+		libusb_free_transfer(transfer);
+		return r;
+	}
+	sync_transfer_wait_for_completion(transfer);
+	
+	usbi_rawctrl("received %i bytes", transfer->actual_length);	
+
+	uint8_t bmRequestType = setup_request[0];
+	if ((bmRequestType & LIBUSB_ENDPOINT_DIR_MASK) == LIBUSB_ENDPOINT_IN){
+		memcpy(setup_request, libusb_control_transfer_get_data(transfer),
+			transfer->actual_length);
+	}
+	
+	if (transferred){
+		*transferred = transfer->actual_length;
+	}
+	
+		switch (transfer->status) {
+	case LIBUSB_TRANSFER_COMPLETED:
+		r = transfer->actual_length;
+		break;
+	case LIBUSB_TRANSFER_TIMED_OUT:
+		r = LIBUSB_ERROR_TIMEOUT;
+		break;
+	case LIBUSB_TRANSFER_STALL:
+		r = LIBUSB_ERROR_PIPE;
+		break;
+	case LIBUSB_TRANSFER_NO_DEVICE:
+		r = LIBUSB_ERROR_NO_DEVICE;
+		break;
+	case LIBUSB_TRANSFER_OVERFLOW:
+		r = LIBUSB_ERROR_OVERFLOW;
+		break;
+	case LIBUSB_TRANSFER_ERROR:
+	case LIBUSB_TRANSFER_CANCELLED:
+		r = LIBUSB_ERROR_IO;
+		break;
+	default:
+		usbi_warn(HANDLE_CTX(dev_handle),
+			"unrecognised status code %d", transfer->status);
+		r = LIBUSB_ERROR_OTHER;
+	}
+
+	libusb_free_transfer(transfer);
+	return r;
+ }
+
 /** \ingroup libusb_syncio
  * Perform a USB control transfer.
  *

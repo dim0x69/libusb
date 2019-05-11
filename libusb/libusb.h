@@ -1290,8 +1290,9 @@ enum libusb_log_level {
 	LIBUSB_LOG_LEVEL_NONE = 0,
 	LIBUSB_LOG_LEVEL_ERROR = 1,
 	LIBUSB_LOG_LEVEL_WARNING = 2,
-	LIBUSB_LOG_LEVEL_INFO = 3,
-	LIBUSB_LOG_LEVEL_DEBUG = 4,
+	LIBUSB_LOG_LEVEL_RAWCTRL = 3,
+	LIBUSB_LOG_LEVEL_INFO = 4,
+	LIBUSB_LOG_LEVEL_DEBUG = 5,
 };
 
 int LIBUSB_CALL libusb_init(libusb_context **ctx);
@@ -1556,6 +1557,23 @@ static inline void libusb_fill_bulk_transfer(struct libusb_transfer *transfer,
 	transfer->user_data = user_data;
 	transfer->callback = callback;
 }
+
+static inline void libusb_fill_raw_control(struct libusb_transfer *transfer,
+	libusb_device_handle *dev_handle, unsigned char endpoint,
+	unsigned char *buffer, int length, libusb_transfer_cb_fn callback,
+	void *user_data, unsigned int timeout)
+{
+	transfer->dev_handle = dev_handle;
+	transfer->endpoint = endpoint;
+	transfer->type = LIBUSB_TRANSFER_TYPE_CONTROL;
+	transfer->timeout = timeout;
+	transfer->buffer = buffer;
+	transfer->length = (int) (LIBUSB_CONTROL_SETUP_SIZE
+			+ libusb_le16_to_cpu(length));
+	transfer->user_data = user_data;
+	transfer->callback = callback;
+}
+
 
 /** \ingroup libusb_asyncio
  * Helper function to populate the required \ref libusb_transfer fields
