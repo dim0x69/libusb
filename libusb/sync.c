@@ -114,10 +114,10 @@ int API_EXPORTED libusb_raw_control_transfer(struct libusb_device_handle *dev_ha
 
 	uint8_t bmRequestType = setup_request[0];
 	if ((bmRequestType & LIBUSB_ENDPOINT_DIR_MASK) == LIBUSB_ENDPOINT_IN){
-		memcpy(setup_request, libusb_control_transfer_get_data(transfer),
+		memcpy(result_data, libusb_control_transfer_get_data(transfer),
 			transfer->actual_length);
 	}
-	
+
 	if (transferred){
 		*transferred = transfer->actual_length;
 	}
